@@ -3,7 +3,7 @@ import streamlit as st
 import os
 
 # Ruta del archivo CSV dentro del repositorio
-file_path = os.path.join("data", "CAR_INDEX.csv")  
+file_path = os.path.join("data", "CAR INDEX.csv")  
 file_path_con_comentarios = os.path.join("data", "CAR_INDEX_con_comentarios.xlsx")
 
 # Verificar si el archivo existe
