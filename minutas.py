@@ -2,9 +2,9 @@ import pandas as pd
 import streamlit as st
 import os
 
-# Ruta del archivo CSV
-file_path = r"C:\Users\cokeh\Desktop\car index minutas\CAR INDEX.csv"
-file_path_con_comentarios = r"C:\Users\cokeh\Desktop\car index minutas\CAR_INDEX_con_comentarios.xlsx"  # Archivo donde se guardan los comentarios
+# Ruta del archivo CSV dentro del repositorio
+file_path = os.path.join("data", "CAR_INDEX.csv")  
+file_path_con_comentarios = os.path.join("data", "CAR_INDEX_con_comentarios.xlsx")
 
 # Verificar si el archivo existe
 if not os.path.exists(file_path):
@@ -30,7 +30,6 @@ st.markdown('<p class="sub-title">Monitorea los KPI de los vendedores con análi
 st.divider()
 
 # ===================== Filtros ===================== #
-# Verificar que las columnas necesarias existan
 def validar_columna(df, columna):
     if columna not in df.columns:
         st.error(f"🚨 La columna '{columna}' no existe en los datos.")
@@ -62,83 +61,64 @@ vendedor_seleccionado = st.sidebar.selectbox("🧑‍💼 Selecciona un Vendedor
 if vendedor_seleccionado:
     df_filtrado = df_filtrado[df_filtrado["Vendedor"] == vendedor_seleccionado]
 
-# =====================  Mostrar KPIs sin cálculos ===================== #
+# =====================  Mostrar KPIs ===================== #
 
-# Mostrar los valores de "Avance Ponderado Total", "Cobertura del Tubo" y "Cumplimiento Minutas"
 col1, col2, col3 = st.columns(3)
 
 with col1:
     if "AvancePonderadoTotal" in df_filtrado.columns:
-        kpi_avance = df_filtrado["AvancePonderadoTotal"].iloc[0]  # Mostrar el primer valor de la columna filtrada
+        kpi_avance = df_filtrado["AvancePonderadoTotal"].iloc[0]
         st.metric("Avance Ponderado Total", kpi_avance)
 
-# Mostrar el KPI de **Cobertura del Tubo**
 with col2:
     kpi_cobertura = "N/A"
     if "Cobertura del tubo" in df_filtrado.columns:
         kpi_cobertura = df_filtrado["Cobertura del tubo"].iloc[0]
     st.metric("Cobertura del Tubo", kpi_cobertura)
 
-# Mostrar el KPI de **Cumplimiento Minutas**
 with col3:
-    kpi_cumplimiento = 0  # Por defecto, se setea a 0
+    kpi_cumplimiento = 0
     if os.path.exists(file_path_con_comentarios):
         df_comentarios_guardados = pd.read_excel(file_path_con_comentarios)
-        
-        # Filtrar las semanas con comentarios
         semanas_completadas = df_comentarios_guardados[df_comentarios_guardados["Comentarios"].notna()]["Week Calendar"].unique()
-        
-        # Total de semanas posibles
         semanas_totales = df_comentarios_guardados["Week Calendar"].nunique()
-        
         if semanas_totales > 0:
-            # Calcular el porcentaje de cumplimiento
             kpi_cumplimiento = (len(semanas_completadas) / semanas_totales) * 100
-    
     st.metric("KPI Cumplimiento Minutas", f"{kpi_cumplimiento:.2f}%")
 
-# ===================== Agregar Comentarios a la Tabla ===================== #
+# ===================== Agregar Comentarios ===================== #
 
-# Agregar la columna de Comentarios si no existe
 if "Comentarios" not in df_filtrado.columns:
     df_filtrado["Comentarios"] = ""
 
-# Mostrar el formulario de comentarios solo si se ha seleccionado un vendedor
 if vendedor_seleccionado:
     for index, row in df_filtrado.iterrows():
         comentario = st.text_input(f"Comentario para {row['Vendedor']} (Semana: {row['Week Calendar']})", 
-                                  value=row["Comentarios"], key=index)
-        # Actualizar el dataframe con el comentario ingresado, manteniendo la fila original
+                                   value=row["Comentarios"], key=index)
         df_filtrado.at[index, "Comentarios"] = comentario
 
-# ===================== Mostrar Tabla Completa con Comentarios ===================== #
+# ===================== Mostrar Tabla ===================== #
 st.markdown("### 📊 Tabla de Indicadores con Comentarios")
 st.dataframe(df_filtrado, use_container_width=True)
 
-# ===================== Guardar Comentarios en un Archivo Excel ===================== #
+# ===================== Guardar Comentarios ===================== #
 
 def guardar_comentarios_acumulados(df, archivo_guardar):
-    # Verificar si ya existe un archivo con comentarios previos
     if os.path.exists(archivo_guardar):
-        df_comentarios_guardados = pd.read_excel(archivo_guardar)  # Leer el archivo con comentarios anteriores
-        # Asegurarnos de que las columnas del dataframe original y el de los comentarios coincidan
+        df_comentarios_guardados = pd.read_excel(archivo_guardar)
         df_comentarios_guardados = pd.concat([df_comentarios_guardados, df[["YM", "Week Calendar", "Sucursal", "Jefe de venta s", "Vendedor", 
-                                                                          "actividad primer intento", "Porcentaje primer intento", "Conversión de leads", 
-                                                                          "PorcentajeDeAvanceConversión", "AvancePonderadoTotal", "on con gestion 100%", 
-                                                                          "Cobertura del tubo", "Comentarios"]]], ignore_index=True)
+                                                                           "actividad primer intento", "Porcentaje primer intento", "Conversión de leads", 
+                                                                           "PorcentajeDeAvanceConversión", "AvancePonderadoTotal", "on con gestion 100%", 
+                                                                           "Cobertura del tubo", "Comentarios"]]], ignore_index=True)
     else:
-        # Si no existe, simplemente asignar los datos actuales
         df_comentarios_guardados = df[["YM", "Week Calendar", "Sucursal", "Jefe de venta s", "Vendedor", 
                                        "actividad primer intento", "Porcentaje primer intento", "Conversión de leads", 
                                        "PorcentajeDeAvanceConversión", "AvancePonderadoTotal", "on con gestion 100%", 
                                        "Cobertura del tubo", "Comentarios"]]
     
-    # Guardar el archivo Excel con los comentarios acumulados
     df_comentarios_guardados.to_excel(archivo_guardar, index=False)
-    
-    return archivo_guardar  # Devolver el archivo guardado
+    return archivo_guardar  
 
-# Botón para guardar los comentarios en un archivo (ubicado después de la tabla)
 st.markdown("### 💾 Guardar Comentarios")
 if st.button("Guardar Comentarios"):
     archivo_guardado = guardar_comentarios_acumulados(df_filtrado, file_path_con_comentarios)
