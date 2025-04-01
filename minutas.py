@@ -8,11 +8,12 @@ import io
 import time
 import numpy as np
 
-# ===================== Autenticación con contraseña ===================== #
+# ===================== Autenticación con contraseña inicial ===================== #
 PASSWORD = "Minutas2025" 
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+    st.session_state.sharepoint_authenticated = False  # Nueva variable de estado
 
 if not st.session_state.authenticated:
     st.title("🔒 Acceso Restringido")
@@ -31,24 +32,40 @@ if not st.session_state.authenticated:
 # ===================== Configuración de la página ===================== #
 st.set_page_config(page_title="Dashboard CAR INDEX", layout="wide")
 
-# Credenciales de SharePoint
-site_url = "https://salfa.sharepoint.com/sites/MinutasCar"
-username = "jpachecop@salfa.cl"
-password = "Onix.2025"
+# ===================== Autenticación SharePoint Dinámica ===================== #
+st.sidebar.markdown("## 🔑 Credenciales SharePoint")
+
+if not st.session_state.sharepoint_authenticated:
+    username = st.sidebar.text_input("Usuario SharePoint (ej: tuemail@salfa.cl)")
+    password = st.sidebar.text_input("Contraseña SharePoint", type="password")
+    
+    if st.sidebar.button("🚀 Conectar a SharePoint"):
+        if not username or not password:
+            st.sidebar.warning("⚠️ Ingresa usuario y contraseña")
+        else:
+            try:
+                # Credenciales de SharePoint
+                site_url = "https://salfa.sharepoint.com/sites/MinutasCar"
+                
+                context = AuthenticationContext(site_url)
+                if not context.acquire_token_for_user(username.strip(), password.strip()):
+                    st.sidebar.error("❌ Error de autenticación. Verifica tus credenciales.")
+                else:
+                    st.session_state.ctx = ClientContext(site_url, context)
+                    st.session_state.sharepoint_authenticated = True
+                    st.sidebar.success("✅ Conectado a SharePoint!")
+                    time.sleep(1)
+                    st.rerun()
+            except Exception as e:
+                st.sidebar.error(f"❌ Error de conexión: {str(e)}")
+    st.stop()  # Detiene la ejecución hasta autenticar SharePoint
 
 # ===================== Conexión a SharePoint ===================== #
 try:
-    context = AuthenticationContext(site_url)
-    if not context.acquire_token_for_user(username, password):
-        st.error("❌ Error de autenticación en SharePoint.")
-        st.stop()
-
-    ctx = ClientContext(site_url, context)
+    ctx = st.session_state.ctx
     status_container = st.empty()
-    status_container.success("✅ Autenticación exitosa.")
-    time.sleep(2)
-    status_container.empty()
-
+    status_container.success("✅ Conectado a SharePoint. Cargando datos...")
+    
     folder_url = "/sites/MinutasCar/Documentos%20compartidos"
     files = ctx.web.get_folder_by_server_relative_url(folder_url).files
     ctx.load(files)
@@ -92,7 +109,6 @@ try:
 except Exception as e:
     st.error(f"❌ Error al conectar con SharePoint: {e}")
     st.stop()
-
 # ===================== DISEÑO DEL DASHBOARD ===================== #
 st.markdown("""
     <style>
