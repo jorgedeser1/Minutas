@@ -13,7 +13,6 @@ PASSWORD = "Minutas2025"
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-    st.session_state.sharepoint_authenticated = False  # Nueva variable de estado
 
 if not st.session_state.authenticated:
     st.title("🔒 Acceso Restringido")
@@ -32,37 +31,22 @@ if not st.session_state.authenticated:
 # ===================== Configuración de la página ===================== #
 st.set_page_config(page_title="Dashboard CAR INDEX", layout="wide")
 
-# ===================== Autenticación SharePoint Dinámica ===================== #
-st.sidebar.markdown("## 🔑 Credenciales SharePoint")
-
-if not st.session_state.sharepoint_authenticated:
-    username = st.sidebar.text_input("Usuario SharePoint (ej: tuemail@salfa.cl)")
-    password = st.sidebar.text_input("Contraseña SharePoint", type="password")
-    
-    if st.sidebar.button("🚀 Conectar a SharePoint"):
-        if not username or not password:
-            st.sidebar.warning("⚠️ Ingresa usuario y contraseña")
-        else:
-            try:
-                # Credenciales de SharePoint
-                site_url = "https://salfa.sharepoint.com/sites/MinutasCar"
-                
-                context = AuthenticationContext(site_url)
-                if not context.acquire_token_for_user(username.strip(), password.strip()):
-                    st.sidebar.error("❌ Error de autenticación. Verifica tus credenciales.")
-                else:
-                    st.session_state.ctx = ClientContext(site_url, context)
-                    st.session_state.sharepoint_authenticated = True
-                    st.sidebar.success("✅ Conectado a SharePoint!")
-                    time.sleep(1)
-                    st.rerun()
-            except Exception as e:
-                st.sidebar.error(f"❌ Error de conexión: {str(e)}")
-    st.stop()  # Detiene la ejecución hasta autenticar SharePoint
+# ===================== Credenciales SharePoint ===================== #
+SHAREPOINT_USERNAME = "jpachecop@salfa.cl" 
+SHAREPOINT_PASSWORD = "Onix.2025"       
+SHAREPOINT_SITE = "https://salfa.sharepoint.com/sites/MinutasCar"
 
 # ===================== Conexión a SharePoint ===================== #
 try:
-    ctx = st.session_state.ctx
+    # Autenticación automática
+    ctx_auth = AuthenticationContext(SHAREPOINT_SITE)
+    if not ctx_auth.acquire_token_for_user(SHAREPOINT_USERNAME, SHAREPOINT_PASSWORD):
+        st.error("❌ Error de autenticación con SharePoint. Verifica las credenciales en el código.")
+        st.stop()
+    
+    ctx = ClientContext(SHAREPOINT_SITE, ctx_auth)
+    st.session_state.ctx = ctx
+    
     status_container = st.empty()
     status_container.success("✅ Conectado a SharePoint. Cargando datos...")
     
